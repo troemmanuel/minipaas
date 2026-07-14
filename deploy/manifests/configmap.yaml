@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: minipass
+data:
+  PORT: "8080"
+  RABBITMQ_QUEUE: "items_events"
+
+
