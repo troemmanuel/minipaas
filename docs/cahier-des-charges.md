@@ -38,7 +38,7 @@ L'application métier est volontairement minimale : **elle n'est pas le sujet**.
 ```
         MONOREPO
 ┌───────────────────────┐
-│  app/                 │  push (chemin app/**)   ┌──────────────┐
+│  apps/                │  push (chemin apps/**)  ┌──────────────┐
 │    code + Dockerfile  │────────────────────────▶│   Jenkins    │
 │                       │                         │ (in-cluster) │
 │  deploy/              │                         └──────┬───────┘
@@ -86,7 +86,7 @@ Bénéfices :
 - Jenkins n'a plus besoin d'un token d'écriture Git, ce qui réduit sa surface d'attaque.
 - Séparation nette des responsabilités : la CI produit des artefacts, le CD gère l'état du cluster.
 
-**Défense en profondeur — filtres de chemin.** Indépendamment du point ci-dessus, Jenkins ne déclenche un build que si le répertoire `app/**` a été modifié. Un changement portant uniquement sur `deploy/**` ou `platform/**` ne relance pas la construction de l'image. C'est une bonne pratique générale en monorepo, appliquée ici également comme garde-fou.
+**Défense en profondeur — filtres de chemin.** Indépendamment du point ci-dessus, Jenkins ne déclenche un build que si le répertoire `apps/**` a été modifié. Un changement portant uniquement sur `deploy/**` ou `platform/**` ne relance pas la construction de l'image. C'est une bonne pratique générale en monorepo, appliquée ici également comme garde-fou.
 
 *Solutions alternatives écartées : marqueur `[skip ci]` dans le message de commit du job de mise à jour (fonctionnel mais fragile, la boucle est rompue par convention et non par conception).*
 
@@ -96,7 +96,7 @@ Le projet est organisé en **un dépôt unique**, découpé en trois domaines :
 
 | Domaine | Contenu |
 |---|---|
-| `app/` | Code applicatif, `Dockerfile` |
+| `apps/` | Code applicatif, `Dockerfile` |
 | `deploy/` | Chart Helm, valeurs par environnement, `Application` ArgoCD, secrets scellés |
 | `platform/` | Terraform, playbooks Ansible, configuration JCasC de Jenkins |
 
@@ -203,7 +203,7 @@ ArgoCD supporte nativement ce découpage : le champ `path` de la ressource `Appl
 pipeline {
   agent { kubernetes { yaml podTemplate } }
   // Monorepo : ne construire que si le domaine applicatif a changé
-  triggers { /* déclenchement filtré sur app/** */ }
+  triggers { /* déclenchement filtré sur apps/** */ }
   stages {
     stage('Lint')  { /* ... */ }
     stage('Test')  { /* tests unitaires + couverture */ }
@@ -248,7 +248,7 @@ pipeline {
 
 **Critères d'acceptation**
 
-- [ ] La boucle complète est vérifiée : commit sur `app/**` → build → image publiée dans Harbor → Image Updater détecte le nouveau tag → ArgoCD synchronise → nouveaux pods en ligne.
+- [ ] La boucle complète est vérifiée : commit sur `apps/**` → build → image publiée dans Harbor → Image Updater détecte le nouveau tag → ArgoCD synchronise → nouveaux pods en ligne.
 - [ ] Aucun commit n'est produit par la CI ; la boucle de rétroaction du monorepo n'existe pas.
 - [ ] `kubectl delete deployment <app>` : ArgoCD recrée la ressource automatiquement (self-healing).
 - [ ] Une modification manuelle par `kubectl edit` est écrasée à la synchronisation suivante (correction de dérive).
@@ -326,14 +326,18 @@ pipeline {
 
 ```
 minipaas/
-├── app/                          # Domaine applicatif
-│   ├── api/
-│   │   ├── src/
-│   │   └── Dockerfile
-│   ├── worker/
-│   │   ├── src/
-│   │   └── Dockerfile
-│   └── docker-compose.yml        # Exécution locale sans Kubernetes
+├── apps/                         # Domaine applicatif
+│   └── crud-go/
+│       ├── api/                  # API REST (CRUD, /health, /metrics)
+│       │   ├── main.go
+│       │   ├── handlers.go
+│       │   └── Dockerfile
+│       ├── worker/               # Consommateur RabbitMQ
+│       │   ├── main.go
+│       │   └── Dockerfile
+│       ├── internal/             # config, db, cache, queue, metrics
+│       ├── go.mod
+│       └── docker-compose.yml    # Exécution locale sans Kubernetes
 │
 ├── deploy/                       # Domaine déploiement (observé par ArgoCD)
 │   ├── chart/
@@ -365,7 +369,7 @@ minipaas/
 │   ├── architecture.md
 │   └── runbooks/
 │
-├── Jenkinsfile                   # Déclenché sur app/** uniquement
+├── Jenkinsfile                   # Déclenché sur apps/** uniquement
 └── README.md
 ```
 
@@ -396,7 +400,7 @@ cd app && docker compose up
 - **Jenkins n'écrit pas dans le dépôt.** En monorepo, tout commit émis par la CI dans le dépôt qu'elle surveille crée une boucle de build infinie. La mise à jour du tag d'image est déléguée à Argo CD Image Updater.
 - **Aucun `kubectl apply` manuel** une fois ArgoCD en place : toute modification passe par Git, sinon la dérive sera écrasée à la prochaine synchronisation.
 - **Ressources et sondes obligatoires** sur chaque conteneur : sans `requests`, le scheduler ne peut pas faire son travail ; sans sondes, Kubernetes ne peut pas savoir si l'application est réellement saine.
-- **Le découpage en dossiers est une frontière, pas une convention cosmétique.** `app/`, `deploy/` et `platform/` ont des cycles de vie, des déclencheurs et des droits distincts. Les mélanger reviendrait à perdre le bénéfice du monorepo sans en éviter les inconvénients.
+- **Le découpage en dossiers est une frontière, pas une convention cosmétique.** `apps/`, `deploy/` et `platform/` ont des cycles de vie, des déclencheurs et des droits distincts. Les mélanger reviendrait à perdre le bénéfice du monorepo sans en éviter les inconvénients.
 
 ---
 

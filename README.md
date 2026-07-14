@@ -7,7 +7,7 @@ L'application métier livrée par la plateforme est volontairement minimale : l'
 ## Principes clés
 
 - **GitOps** : Git est l'unique source de vérité de l'état du cluster. La CI ne déploie jamais ; ArgoCD observe et fait converger le cluster.
-- **Monorepo à trois domaines** : `app/` (code applicatif), `deploy/` (Helm, ArgoCD, secrets scellés), `platform/` (Terraform, Ansible, Jenkins).
+- **Monorepo à trois domaines** : `apps/` (code applicatif), `deploy/` (Helm, ArgoCD, secrets scellés), `platform/` (Terraform, Ansible, Jenkins).
 - **Rupture de la boucle de rétroaction** : Argo CD Image Updater détecte les nouveaux tags d'image au registre, sans que la CI n'ait besoin d'écrire dans le dépôt.
 - **Sécurité par conception** : pas de conteneur privilégié (Kaniko plutôt que Docker-in-Docker), pas de secret en clair (Sealed Secrets), images scannées (Trivy).
 - **Reproductibilité** : l'ensemble de la plateforme se reconstruit depuis zéro via Terraform et Ansible.
@@ -20,7 +20,7 @@ Spring Boot/FastAPI, PostgreSQL, Redis, RabbitMQ, Docker, Kubernetes (k3d/kind),
 
 ```
 minipaas/
-├── app/          # Code applicatif, Dockerfile
+├── apps/         # Code applicatif (apps/crud-go : API + worker + Dockerfiles)
 ├── deploy/       # Chart Helm, valeurs par environnement, ArgoCD, secrets scellés
 ├── platform/     # Terraform, Ansible, configuration Jenkins (JCasC)
 └── docs/         # Documentation, cahier des charges, runbooks
@@ -43,5 +43,20 @@ cd platform/terraform && terraform init && terraform apply
 kubectl get applications -n argocd
 
 # 4. Exécution locale sans Kubernetes (développement)
-cd app && docker compose up
+cd apps/crud-go && docker compose up
+```
+
+## Application (apps/crud-go)
+
+API CRUD en Go (`api/`) + worker consommateur RabbitMQ (`worker/`), avec PostgreSQL, Redis et RabbitMQ. Voir [Étape 1 du cahier des charges](docs/cahier-des-charges.md#étape-1--application-et-conteneurisation).
+
+- `GET /health` — état des dépendances (Postgres, Redis, RabbitMQ)
+- `GET /metrics` — métriques au format Prometheus
+- `GET/POST /items`, `GET/PUT/DELETE /items/{id}` — CRUD, avec cache Redis en lecture et publication d'événements RabbitMQ (`item.created`/`item.updated`/`item.deleted`) consommés par le worker
+
+```bash
+cd apps/crud-go
+docker compose up -d
+curl http://localhost:8080/health
+curl -X POST http://localhost:8080/items -H "Content-Type: application/json" -d '{"name":"demo"}'
 ```
