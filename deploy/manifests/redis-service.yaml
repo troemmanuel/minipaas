@@ -1,0 +1,14 @@
+# Service ClusterIP classique (pas headless comme pour Postgres) : un
+# Deployment traite ses pods comme interchangeables, donc pas besoin
+# d'identité DNS stable par pod, juste "un pod app=redis, peu importe lequel".
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: minipaas
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379

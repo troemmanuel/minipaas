@@ -1,0 +1,64 @@
+# Deployment (comme l'API) : le worker est sans état, remplaçable.
+# Pas de Service associé : il ne reçoit pas de trafic entrant métier,
+# il consomme juste la file RabbitMQ. Un Service pourra être ajouté à
+# l'étape 7 pour le scraping Prometheus (ServiceMonitor).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: minipaas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: crud-go-worker:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          envFrom:
+            # app-config définit PORT=8080 (pensé pour l'API) : on le
+            # surcharge juste en dessous avec env, qui gagne toujours
+            # en cas de collision avec envFrom.
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: PORT
+              value: "8081"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            # Même raisonnement que pour l'API : tcpSocket, pas /health,
+            # pour ne pas redémarrer le worker à cause d'un hoquet RabbitMQ.
+            tcpSocket:
+              port: 8081
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3

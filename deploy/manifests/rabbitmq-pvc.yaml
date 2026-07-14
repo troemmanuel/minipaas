@@ -1,0 +1,13 @@
+# PVC manuel (comme au point 3a) : une seule instance RabbitMQ, pas de
+# clustering, donc pas besoin du mécanisme volumeClaimTemplates du StatefulSet.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pvc
+  namespace: minipaas
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,86 @@
+# StatefulSet plutôt que Deployment : chaque pod (postgres-0) obtient une
+# identité stable et un volume dédié garanti (voir volumeClaimTemplates plus bas),
+# ce qu'un Deployment ne peut pas offrir pour plusieurs répliques.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: minipaas
+spec:
+  # Doit correspondre au Service headless (clusterIP: None) qui donne
+  # une identité DNS stable à chaque pod : postgres-0.postgres...
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        # Doit correspondre à selector.matchLabels ci-dessus et au selector
+        # du Service postgres.
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            # Informatif uniquement : ne fait ni routage ni firewall,
+            # c'est le targetPort du Service qui fait le travail.
+            - containerPort: 5432
+          envFrom:
+            # Injecte POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
+            # d'un coup, lues par l'image officielle au premier démarrage.
+            - secretRef:
+                name: postgres-secrets
+          env:
+            # Sous-dossier dédié : évite l'échec d'initialisation si le point
+            # de montage racine contient un dossier lost+found (ext4).
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            # "postgres-data" doit correspondre au nom du volumeClaimTemplate
+            # ci-dessous : c'est ce qui relie volume et point de montage.
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            # requests: garanti + utilisé par le scheduler pour choisir le nœud.
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            # limits: plafond dur. Mémoire dépassée -> OOMKilled. CPU dépassé -> throttling.
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            # Protège la toute première initialisation (peut prendre plusieurs
+            # secondes) : tant qu'elle n'a pas réussi, readiness/liveness sont suspendues.
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            # Échec = retiré du Service temporairement, PAS de redémarrage.
+            # Utile pour un état transitoire (ex. reload de config).
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            # Échec répété = le conteneur est tué et redémarré (process figé/deadlock).
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+  volumeClaimTemplates:
+    # Génère automatiquement un PVC dédié par pod (postgres-data-postgres-0),
+    # rattaché pour toujours à ce pod précis. C'est ce qui garantit la
+    # persistance des données à travers les suppressions/recréations du pod.
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

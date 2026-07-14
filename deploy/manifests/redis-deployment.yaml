@@ -1,0 +1,51 @@
+# Deployment (pas StatefulSet) : Redis sert ici de cache applicatif, pas de
+# source de vérité. Si le pod redémarre, on perd le cache — sans conséquence,
+# l'API retombe sur Postgres (cache-aside). Pas besoin d'identité stable ni
+# de volume dédié par réplique.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: minipaas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        # Doit correspondre à selector.matchLabels ci-dessus et au selector
+        # du Service redis.
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            # Informatif uniquement, comme pour Postgres : c'est le Service
+            # qui fait le vrai routage via targetPort.
+            - containerPort: 6379
+          resources:
+            # Redis est mono-thread et peu gourmand pour un cache de cette
+            # taille : budget volontairement plus faible que Postgres.
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            # redis-cli ping renvoie un exit code 0 si le serveur répond.
+            # Échec = retiré temporairement du Service, pas de redémarrage.
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            # Échec répété = conteneur tué et redémarré (process figé).
+            exec:
+              command: ["redis-cli", "ping"]
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3

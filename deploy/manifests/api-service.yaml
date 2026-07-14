@@ -1,0 +1,12 @@
+# ClusterIP classique : c'est ce Service que l'Ingress ciblera au point 7.
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: minipaas
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 8080
+      targetPort: 8080
