@@ -17,6 +17,9 @@ jenkins:
         serverUrl: "https://kubernetes.default"
         namespace: "cicd"
         jenkinsUrl: "http://jenkins.cicd.svc.cluster.local:8080"
+        # Port dédié à la connexion JNLP (distinct du port web 8080) --
+        # sans ça, l'agent reste "offline" indéfiniment malgré un pod Running.
+        jenkinsTunnel: "jenkins-agent.cicd.svc.cluster.local:50000"
         templates:
           - name: "kaniko"
             label: "kaniko"
