@@ -1,0 +1,22 @@
+# Traefik est le contrôleur d'Ingress fourni par défaut avec k3d — rien à
+# installer, juste déclarer cette ressource.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api
+  namespace: minipaas
+spec:
+  ingressClassName: traefik
+  rules:
+    # Pas de "host:" ici : règle "catch-all", valable pour n'importe quel nom
+    # d'hôte. Pratique pour tester directement sur localhost sans toucher
+    # /etc/hosts. En production on préciserait un vrai nom de domaine.
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 8080
