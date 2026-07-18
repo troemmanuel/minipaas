@@ -1,0 +1,57 @@
+# Toutes les valeurs non sensibles du chart. Les templates ne doivent
+# JAMAIS contenir de valeur en dur -- tout passe par .Values.xxx, avec
+# son défaut ici (surchargeable par values-dev.yaml / values-prod.yaml
+# ou --set au moment du helm install/upgrade).
+
+namespace: minipaas
+
+postgres:
+  image: postgres:16-alpine
+  storage: 1Gi
+  database: minipaas
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+redis:
+  image: redis:7-alpine
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 256Mi }
+
+rabbitmq:
+  image: rabbitmq:3-management-alpine
+  storage: 1Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+api:
+  image:
+    repository: crud-go-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 8080
+  queueName: items_events
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+worker:
+  image:
+    repository: crud-go-worker
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 8081
+  resources:
+    requests: { cpu: 50m, memory: 32Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+
+ingress:
+  enabled: true
+  className: traefik
+  # Vide = règle "catch-all" (voir étape 2, point 7). Renseigner un nom de
+  # domaine réel ici en production.
+  host: ""

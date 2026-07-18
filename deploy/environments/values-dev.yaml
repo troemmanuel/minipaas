@@ -1,0 +1,18 @@
+# Surcharge de deploy/chart/values.yaml pour l'environnement de développement.
+# Usage : helm install ... -f deploy/environments/values-dev.yaml -f deploy/chart/values.secrets.yaml
+
+api:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 32Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+
+worker:
+  replicas: 1
+  resources:
+    requests: { cpu: 25m, memory: 16Mi }
+    limits: { cpu: 100m, memory: 64Mi }
+
+ingress:
+  # Catch-all, pratique en local -- pas de nom de domaine à gérer.
+  host: ""

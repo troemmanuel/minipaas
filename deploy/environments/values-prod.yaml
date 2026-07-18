@@ -1,0 +1,15 @@
+# Surcharge de deploy/chart/values.yaml pour l'environnement de production.
+api:
+  replicas: 3
+  resources:
+    requests: { cpu: 250m, memory: 128Mi }
+    limits: { cpu: 1000m, memory: 512Mi }
+
+worker:
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+ingress:
+  host: "minipaas.example.com"

@@ -1,0 +1,21 @@
+# apiVersion v2 = format Helm 3+ (v1 est l'ancien format Helm 2, obsolète)
+apiVersion: v2
+
+# Nom du chart — c'est aussi le nom par défaut utilisé dans certaines
+# conventions de nommage des ressources (on gérera ça via _helpers.tpl).
+name: minipaas
+
+# Description libre, affichée par `helm show chart`.
+description: Chart Helm pour l'application CRUD MiniPaaS (API + worker + dépendances)
+
+# "application" = chart qui déploie une appli (par opposition à "library",
+# un chart qui ne fournit que des helpers réutilisables par d'autres charts).
+type: application
+
+# Version du CHART lui-même (suit semver). À incrémenter à chaque
+# modification des templates/values — indépendant de la version de l'appli.
+version: 0.1.0
+
+# Version de l'APPLICATION packagée (l'image Docker, en gros). Purement
+# informatif pour Helm, mais bonne pratique pour la traçabilité.
+appVersion: "0.1.0"
