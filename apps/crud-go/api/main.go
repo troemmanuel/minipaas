@@ -76,3 +76,5 @@ func main() {
 		log.Printf("error: graceful shutdown: %v", err)
 	}
 }
+
+// trigger CI pipeline test (etape 4)
