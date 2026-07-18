@@ -65,14 +65,20 @@ pipeline {
                         // Kaniko construit puis pousse en une seule commande
                         // -- pas d'étape "docker push" séparée, il n'y a pas
                         // de démon Docker pour retenir l'image entre les deux.
+                        //
+                        // Les deux appels sont dans UN SEUL bloc sh (donc un
+                        // seul "kubectl exec" dans le conteneur) : l'exécutable
+                        // Kaniko n'est pas conçu pour être invoqué une seconde
+                        // fois via un nouvel exec dans le même conteneur --
+                        // ça échoue avec "Process exited immediately after
+                        // creation" si on sépare en deux étapes sh distinctes.
                         sh """
                             /kaniko/executor \
                               --context=`pwd` \
                               --dockerfile=`pwd`/api/Dockerfile \
                               --destination=${IMAGE_API}:${TAG} \
                               --insecure --skip-tls-verify
-                        """
-                        sh """
+
                             /kaniko/executor \
                               --context=`pwd` \
                               --dockerfile=`pwd`/worker/Dockerfile \
