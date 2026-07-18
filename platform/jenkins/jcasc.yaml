@@ -1,0 +1,79 @@
+# Configuration as Code (JCasC) : TOUTE la config Jenkins de ce fichier est
+# rejouée automatiquement au démarrage du pod -- une réinstallation restaure
+# l'état identique sans aucun clic manuel (critère d'acceptation de l'étape 4).
+jenkins:
+  systemMessage: |
+    MiniPaaS - Usine logicielle
+    Configuration entierement versionnee (JCasC) : platform/jenkins/jcasc.yaml
+  # L'authentification (utilisateur admin) est déjà gérée automatiquement par
+  # le chart via controller.admin.existingSecret -- pas besoin de la redéfinir
+  # ici, on ajoute seulement la stratégie d'autorisation.
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  clouds:
+    - kubernetes:
+        name: "kaniko-cloud"
+        serverUrl: "https://kubernetes.default"
+        namespace: "cicd"
+        jenkinsUrl: "http://jenkins.cicd.svc.cluster.local:8080"
+        templates:
+          - name: "kaniko"
+            label: "kaniko"
+            idleMinutes: 0
+            containers:
+              - name: "jnlp"
+                image: "jenkins/inbound-agent:latest"
+              - name: "kaniko"
+                image: "gcr.io/kaniko-project/executor:debug"
+                command: "/busybox/cat"
+                ttyEnabled: true
+              - name: "golang"
+                image: "golang:1.26-alpine"
+                # Même technique que Kaniko : un process qui reste vivant en
+                # arrière-plan, dans lequel Jenkins "exec" ensuite les
+                # commandes shell de chaque étape.
+                command: "cat"
+                ttyEnabled: true
+              - name: "trivy"
+                image: "aquasec/trivy:latest"
+                command: "cat"
+                ttyEnabled: true
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-credentials"
+              # ${...} n'est PAS la valeur -- c'est une référence résolue au
+              # chargement, à partir des variables d'environnement du pod
+              # (elles-mêmes tirées du Secret Kubernetes, jamais du YAML).
+              username: "${GITHUB_USER}"
+              password: "${GITHUB_TOKEN}"
+              description: "Token GitHub lecture seule (Contents+Metadata: Read-only) -- clone + API, jamais d'ecriture"
+jobs:
+  - script: >
+      multibranchPipelineJob('minipaas') {
+        branchSources {
+          github {
+            id('minipaas-github')
+            scanCredentialsId('github-credentials')
+            repoOwner('troemmanuel')
+            repository('minipaas')
+          }
+        }
+        orphanedItemStrategy {
+          discardOldItems {
+            numToKeep(10)
+          }
+        }
+        triggers {
+          // Fréquence à laquelle Jenkins re-scanne le dépôt pour détecter de
+          // nouvelles branches/MR -- différent du pollSCM du Jenkinsfile, qui
+          // lui vérifie les nouveaux commits d'UNE branche déjà connue.
+          periodicFolderTrigger {
+            interval('5m')
+          }
+        }
+      }

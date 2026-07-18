@@ -1,0 +1,46 @@
+controller:
+  # Référence le Secret créé en 2b -- jamais d'identifiant en dur ici.
+  admin:
+    existingSecret: jenkins-admin
+
+  persistence:
+    enabled: true
+    size: 4Gi
+
+  containerEnv:
+    - name: GITHUB_USER
+      valueFrom:
+        secretKeyRef:
+          name: github-credentials
+          key: username
+    - name: GITHUB_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: github-credentials
+          key: token
+
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: 1000m, memory: 2Gi }
+
+  serviceType: ClusterIP
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    # Contrairement à l'Ingress de l'API (catch-all), celui de Jenkins a
+    # besoin d'un hostname explicite -- on le testera avec curl -H "Host: ..."
+    # plutôt que de modifier /etc/hosts.
+    hostName: jenkins.minipaas.local
+
+  # Plugins nécessaires à la suite de l'étape (agents Kubernetes, pipelines,
+  # intégration GitHub, JCasC lui-même) -- déclarés explicitement, pas
+  # laissés aux valeurs par défaut du chart.
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - github-branch-source
+    - configuration-as-code
+    - pipeline-stage-view
+    - job-dsl
