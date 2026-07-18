@@ -77,4 +77,4 @@ func main() {
 	}
 }
 
-// trigger CI pipeline test (etape 4) -- validation du polling reel
+// trigger CI pipeline test (etape 4) -- validation complete post-correctif kaniko
