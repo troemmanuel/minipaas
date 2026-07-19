@@ -1,0 +1,40 @@
+# Composants désactivés pour rester léger en local -- aucun des deux n'est
+# nécessaire pour notre usage (pas de SSO, pas de notifications Slack/email).
+dex:
+  enabled: false
+notifications:
+  enabled: false
+applicationSet:
+  enabled: false
+
+configs:
+  params:
+    # Le serveur ArgoCD sert du HTTPS avec un certificat auto-signé par
+    # défaut -- incompatible avec notre Ingress Traefik en HTTP simple
+    # (même contrainte que Jenkins/le registre). "insecure" ici ne veut pas
+    # dire "sans authentification", juste "sert du HTTP en interne, sans TLS".
+    server.insecure: true
+
+server:
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hostname: argocd.minipaas.local
+
+repoServer:
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+applicationController:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 1Gi }
+
+redis:
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 256Mi }
