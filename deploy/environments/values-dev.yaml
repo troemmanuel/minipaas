@@ -1,6 +1,12 @@
 # Surcharge de deploy/chart/values.yaml pour l'environnement de développement.
 # Usage : helm install ... -f deploy/environments/values-dev.yaml -f deploy/chart/values.secrets.yaml
 
+# ArgoCD utilise ce fichier et n'a pas accès à values.secrets.yaml (F5) --
+# les Secrets restent hors de son périmètre, provisionnés à la main
+# jusqu'à l'étape 6. En local avec helm install classique + -f
+# values.secrets.yaml, on garde manageSecrets: true (défaut de values.yaml).
+manageSecrets: false
+
 api:
   replicas: 1
   resources:

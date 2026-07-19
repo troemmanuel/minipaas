@@ -5,6 +5,10 @@
 
 namespace: minipaas
 
+# false uniquement dans values-dev.yaml/values-prod.yaml (utilisés par
+# ArgoCD) -- voir templates/postgres-secret.yaml et app-secret.yaml.
+manageSecrets: true
+
 postgres:
   image: postgres:16-alpine
   storage: 1Gi

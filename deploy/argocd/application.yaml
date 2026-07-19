@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: minipaas-dev
+  namespace: argocd
+spec:
+  # "default" est le projet ArgoCD intégré, sans restriction -- suffisant
+  # pour un usage local à une seule application.
+  project: default
+  source:
+    repoURL: https://github.com/troemmanuel/minipaas.git
+    targetRevision: main
+    path: deploy/chart
+    helm:
+      valueFiles:
+        - ../environments/values-dev.yaml
+  destination:
+    # URL interne du cluster où ArgoCD tourne lui-même -- "déploie ici",
+    # par opposition à un cluster distant qu'ArgoCD pourrait aussi gérer.
+    server: https://kubernetes.default.svc
+    namespace: minipaas
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,4 +1,8 @@
 # Surcharge de deploy/chart/values.yaml pour l'environnement de production.
+
+# Voir values-dev.yaml : ArgoCD n'a pas accès à values.secrets.yaml (F5).
+manageSecrets: false
+
 api:
   replicas: 3
   resources:
